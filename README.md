@@ -1,6 +1,6 @@
 # 即将发布......
 
-# ESurfingOS (Comming Soon)
+# ESurfingOS (Coming Soon)
 
 1)天翼OS简介
 
