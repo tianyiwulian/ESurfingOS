@@ -34,9 +34,11 @@ void ctiot_mqtt_demo_data_report(void)
 
         if(g_phandle)
         {
-			DATA_REPORT_SERVICE_DATAREPORT para1 = { 0 };
-			CTIOT_MSG_STATUS result = ctiot_mqtt_data_report_service_datareport(&para1);
-			ATINY_LOG(LOG_INFO, "ctiot_mqtt_data_report_service_datareport result:%d",result);
+			char* payload = NULL;
+			payload="{\"test_key\":\"test_payload\"}";
+			CTIOT_MSG_STATUS result = CTIOT_SUCCESS;
+			result = ctiot_mqtt_msg_publish("tr_up",0,payload);
+			ATINY_LOG(LOG_INFO, "ctiot_mqtt_msg_publish result : %d", result);
 
         }
         else
@@ -65,18 +67,13 @@ UINT32 ctiot_mqtt_create_report_task()
     }
     return uwRet;
 }
+void ctiot_mqtt_tr_cb(void *p)
+{	
+	char *payload = (char *)p;
 
-void ctiot_mqtt_cmd_dn_service_cmddn(void *p)
-{
-	
-	CMD_DN_SERVICE_CMDDN *para = (CMD_DN_SERVICE_CMDDN *)p;
-	CMD_RESPONSE_SERVICE_CMDDNRESPONSE para1 = {0};
- 	para1.taskId = para->taskId;
- 	CTIOT_MSG_STATUS result = ctiot_mqtt_cmd_response_service_cmddnresponse(&para1);
-	ATINY_LOG(LOG_INFO, "ctiot_mqtt_cmd_response_service_cmddnresponse result: %d", result);
-
- 	
+	ATINY_LOG(LOG_DEBUG, "cmd dn data: %s payload!",payload);
 }
+
 CTIOT_CB_FUNC ctiotCbFunc;
 
 void ctiot_mqtt_demo_entry(void)
@@ -90,7 +87,7 @@ void ctiot_mqtt_demo_entry(void)
 
     ctiot_params.info.security_type = MQTT_SECURITY_TYPE_NONE;
 
-	ctiotCbFunc.ctiot_mqtt_cmd_dn_service_cmddn = ctiot_mqtt_cmd_dn_service_cmddn;
+	ctiotCbFunc.ctiot_mqtt_cmd_dn_tr = ctiot_mqtt_tr_cb;
 
 
     if(ATINY_OK != ctiot_mqtt_init(&ctiot_params, &ctiotCbFunc, &g_phandle))

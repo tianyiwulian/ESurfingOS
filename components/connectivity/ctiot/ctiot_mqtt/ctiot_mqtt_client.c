@@ -1,11 +1,7 @@
 #include "ctiot_mqtt_client.h"
 #include "los_base.h"
-#include "los_task.ph"
-#include "los_typedef.h"
-#include "los_sys.h"
 #include "log/atiny_log.h"
 #include "MQTTClient.h"
-#include "dtls_interface.h"
 #include "cJSON.h"
 
 #define MQTT_VERSION_3_1 (3)
@@ -567,7 +563,7 @@ static CTIOT_MSG_STATUS ctiot_mqtt_validate(CTIOT_MQTT_PARA para)
     return ret;
 }
 
-static CTIOT_MSG_STATUS ctiot_mqtt_msg_pub(char *topic,mqtt_qos_e qos,CTIOT_MQTT_PARA para)
+static CTIOT_MSG_STATUS ctiot_mqtt_msg_encode(CTIOT_MQTT_PARA para,char** payload)
 {
     CTIOT_MSG_STATUS ret = CTIOT_SUCCESS;
     cJSON *root = cJSON_CreateObject();
@@ -618,21 +614,15 @@ static CTIOT_MSG_STATUS ctiot_mqtt_msg_pub(char *topic,mqtt_qos_e qos,CTIOT_MQTT
 			}
         }
     }
-    char *payload = cJSON_Print(root);
-	ATINY_LOG(LOG_DEBUG, "report:%s  !",payload);
+    (*payload) = cJSON_Print(root);
+	ATINY_LOG(LOG_DEBUG, "report:%s!",(*payload));
 		
-    int rc = ctiot_mqtt_publish_msg(&g_mqtt_client, payload, strlen(payload), qos, topic);
-    atiny_free(payload);
     cJSON_Delete(root);
 
-    if(rc != 0)
-    {
-        rc = CTIOT_PUBLISH_ERROR;
-    }
     return ret;
 }
 
-static CTIOT_MSG_STATUS ctiot_mqtt_msg_response(char *topic,mqtt_qos_e qos,int taskId,CTIOT_MQTT_PARA para)
+static CTIOT_MSG_STATUS ctiot_mqtt_msg_response_encode(CTIOT_MQTT_PARA para,int taskId,char** payload)
 {
     CTIOT_MSG_STATUS ret = CTIOT_SUCCESS;
     cJSON *root = cJSON_CreateObject();
@@ -690,17 +680,9 @@ static CTIOT_MSG_STATUS ctiot_mqtt_msg_response(char *topic,mqtt_qos_e qos,int t
         }
     }
     cJSON_AddItemToObject(root,"resultPayload",paylaodItem);
-    char *payload = cJSON_Print(root);
-		ATINY_LOG(LOG_DEBUG, "response: %s!",payload);
-		
-    int rc = ctiot_mqtt_publish_msg(&g_mqtt_client, payload, strlen(payload), qos, topic);
-    atiny_free(payload);
+    (*payload) = cJSON_Print(root);
+	ATINY_LOG(LOG_DEBUG, "response:%s!",(*payload));
     cJSON_Delete(root);
-
-    if(rc != 0)
-    {
-        rc = CTIOT_PUBLISH_ERROR;
-    }
     return ret;
 }
 
@@ -757,6 +739,19 @@ static CTIOT_MQTT_PARA ctiot_mqtt_json_parsing(char *json)
     return para;
 }
 
+CTIOT_MSG_STATUS ctiot_mqtt_msg_publish(char *topic,mqtt_qos_e qos,char* payload)
+{
+	CTIOT_MSG_STATUS ret = CTIOT_SUCCESS;
+	ATINY_LOG(LOG_DEBUG, "ctiot_mqtt_msg_publish:%s  !", payload);
+
+	int rc = ctiot_mqtt_publish_msg(&g_mqtt_client, payload, strlen(payload), qos, topic);
+	atiny_free(payload);
+	if (rc != 0)
+	{
+		ret = CTIOT_PUBLISH_ERROR;
+	}
+	return ret;
+}
 static int ctiot_mqtt_publish_msg(mqtt_client_s *phandle, const char *msg,  uint32_t msg_len, mqtt_qos_e qos, char* topic)
 {
     MQTTMessage message;
@@ -797,164 +792,42 @@ static int ctiot_mqtt_publish_msg(mqtt_client_s *phandle, const char *msg,  uint
 }
 
 
-CTIOT_MSG_STATUS ctiot_mqtt_data_report_service_datareport(DATA_REPORT_SERVICE_DATAREPORT* para)
+static void ctiot_cmd_dn_entry(MessageData *md)
 {
-	CTIOT_MSG_STATUS ret = CTIOT_SUCCESS;
-	CTIOT_MQTT_PARA  mqttPara = { 0 };
-	mqttPara.count = 3;
-	mqttPara.paraList[0].ctiotParaType = CTIOT_FLOAT;
-	mqttPara.paraList[0].paraName = "property_temperaturedata";
-	mqttPara.paraList[0].u.ctiotFloat.min = 0.000000;
-	mqttPara.paraList[0].u.ctiotFloat.max = 100.000000;
-	mqttPara.paraList[0].u.ctiotFloat.val = para->property_temperaturedata;
-
-	mqttPara.paraList[1].ctiotParaType = CTIOT_FLOAT;
-	mqttPara.paraList[1].paraName = "property_humiditydata";
-	mqttPara.paraList[1].u.ctiotFloat.min = 0.000000;
-	mqttPara.paraList[1].u.ctiotFloat.max = 100.000000;
-	mqttPara.paraList[1].u.ctiotFloat.val = para->property_humiditydata;
-
-	mqttPara.paraList[2].ctiotParaType = CTIOT_BOOL;
-	mqttPara.paraList[2].paraName = "property_motordata";
-	mqttPara.paraList[2].u.ctiotBool.val = para->property_motordata;
-
-
-	ret = ctiot_mqtt_validate(mqttPara);
-	if (ret != CTIOT_SUCCESS)
+	if ((md == NULL) || (md->message == NULL) || (ctiot_mqtt_modify_payload(md) != ATINY_OK))
 	{
-		return ret;
+		ATINY_LOG(LOG_FATAL, "null point");
+		return;
 	}
 
-	ret = ctiot_mqtt_msg_pub("service_datareport", para->qos, mqttPara);
-
-	return ret;
-}
-CTIOT_MSG_STATUS ctiot_mqtt_event_report_service_eventreport(EVENT_REPORT_SERVICE_EVENTREPORT* para)
-{
-	CTIOT_MSG_STATUS ret = CTIOT_SUCCESS;
-	CTIOT_MQTT_PARA  mqttPara = { 0 };
-	mqttPara.count = 3;
-	mqttPara.paraList[0].ctiotParaType = CTIOT_FLOAT;
-	mqttPara.paraList[0].paraName = "property_temperaturedata";
-	mqttPara.paraList[0].u.ctiotFloat.min = 0.000000;
-	mqttPara.paraList[0].u.ctiotFloat.max = 100.000000;
-	mqttPara.paraList[0].u.ctiotFloat.val = para->property_temperaturedata;
-
-	mqttPara.paraList[1].ctiotParaType = CTIOT_FLOAT;
-	mqttPara.paraList[1].paraName = "property_humiditydata";
-	mqttPara.paraList[1].u.ctiotFloat.min = 0.000000;
-	mqttPara.paraList[1].u.ctiotFloat.max = 100.000000;
-	mqttPara.paraList[1].u.ctiotFloat.val = para->property_humiditydata;
-
-	mqttPara.paraList[2].ctiotParaType = CTIOT_BOOL;
-	mqttPara.paraList[2].paraName = "property_motordata";
-	mqttPara.paraList[2].u.ctiotBool.val = para->property_motordata;
-
-
-	ret = ctiot_mqtt_validate(mqttPara);
-	if (ret != CTIOT_SUCCESS)
-	{
-		return ret;
-	}
-
-	ret = ctiot_mqtt_msg_pub("service_eventreport", para->qos, mqttPara);
-
-	return ret;
-}
-static void ctiot_mqtt_cmd_dn_service_cmddn_entry(MessageData *md) 
-{ 
-	if ((md == NULL) || (md->message == NULL) || (ctiot_mqtt_modify_payload(md) != ATINY_OK)) 
-	{ 
-		ATINY_LOG(LOG_FATAL, "null point"); 
-		return; 
-	} 
- 
-	char *payload = md->message->payload; 
- 
-	CMD_DN_SERVICE_CMDDN para = { 0 }; 
+	char *payload = md->message->payload;
 	CTIOT_CB_FUNC *ctiot_callback = g_mqtt_client.ctiotCbFunc;
- 
-	if (ctiot_callback != NULL && ctiot_callback->ctiot_mqtt_cmd_dn_service_cmddn != NULL) 
-	{ 
-		ATINY_LOG(LOG_INFO, "receive msg: %s", payload);
-		CTIOT_MQTT_PARA paraHead = ctiot_mqtt_json_parsing(payload); 
-		int i = 0; 
-		while (i < paraHead.count) 
-		{ 
-			char* paraname = paraHead.paraList[i].paraName; 
-			if (strcmp(paraname, "taskId") == 0) 
-			{ 
-				para.taskId = (int)paraHead.paraList[i].u.ctiotInt.val; 
-			} 
-			else if(strcmp(paraname,"property_temperaturedata")==0)
-			{
-				para.property_temperaturedata = (float)paraHead.paraList[i].u.ctiotDouble.val;
-			}
-			else if(strcmp(paraname,"property_humiditydata")==0)
-			{
-				para.property_humiditydata = (float)paraHead.paraList[i].u.ctiotDouble.val;
-			}
-			else if(strcmp(paraname,"property_motordata")==0)
-			{
-				para.property_motordata = (int)paraHead.paraList[i].u.ctiotDouble.val;
-			}
- 
-			i++; 
-		} 
-		ctiot_callback->ctiot_mqtt_cmd_dn_service_cmddn(&para); 
-	}
-}
 
-CTIOT_MSG_STATUS ctiot_mqtt_cmd_response_service_cmddnresponse(CMD_RESPONSE_SERVICE_CMDDNRESPONSE* para)
-{
-	CTIOT_MSG_STATUS ret = CTIOT_SUCCESS;
-	CTIOT_MQTT_PARA  mqttPara = { 0 };
-	mqttPara.count = 3;
-	mqttPara.paraList[0].ctiotParaType = CTIOT_FLOAT;
-	mqttPara.paraList[0].paraName = "property_temperaturedata";
-	mqttPara.paraList[0].u.ctiotFloat.min = 0.000000;
-	mqttPara.paraList[0].u.ctiotFloat.max = 100.000000;
-	mqttPara.paraList[0].u.ctiotFloat.val = para->property_temperaturedata;
-
-	mqttPara.paraList[1].ctiotParaType = CTIOT_FLOAT;
-	mqttPara.paraList[1].paraName = "property_humiditydata";
-	mqttPara.paraList[1].u.ctiotFloat.min = 0.000000;
-	mqttPara.paraList[1].u.ctiotFloat.max = 100.000000;
-	mqttPara.paraList[1].u.ctiotFloat.val = para->property_humiditydata;
-
-	mqttPara.paraList[2].ctiotParaType = CTIOT_BOOL;
-	mqttPara.paraList[2].paraName = "property_motordata";
-	mqttPara.paraList[2].u.ctiotBool.val = para->property_motordata;
-
-
-	ret = ctiot_mqtt_validate(mqttPara);
-	if (ret != CTIOT_SUCCESS)
+	if (ctiot_callback != NULL && ctiot_callback->ctiot_mqtt_cmd_dn_tr != NULL)
 	{
-		return ret;
+		ATINY_LOG(LOG_INFO, "receive msg: %s", payload);
+		ctiot_callback->ctiot_mqtt_cmd_dn_tr(payload);
 	}
-
-	ret = ctiot_mqtt_msg_response("service_cmddnresponse", para->qos, para->taskId, mqttPara);
-
-	return ret;
 }
-int ctiot_mqtt_subscribe (void* mhandle) 
-{ 
+
+int ctiot_mqtt_subscribe(void* mhandle)
+{
 	struct mqtt_client_tag_s *handle = mhandle;
-	char *topic; 
-	CTIOT_CB topic_callback = NULL; 
-	int rc; 
-	
-	if (handle->sub_topic) 
-	{ 
-		(void)MQTTSetMessageHandler(&handle->client, handle->sub_topic, NULL); 
-		atiny_free(handle->sub_topic); 
-		handle->sub_topic = NULL; 
-	} 
-	topic = "service_cmddn";
-	topic_callback = ctiot_mqtt_cmd_dn_service_cmddn_entry;
+	char *topic;
+	CTIOT_CB topic_callback = NULL;
+	int rc;
+
+	if (handle->sub_topic)
+	{
+		(void)MQTTSetMessageHandler(&handle->client, handle->sub_topic, NULL);
+		atiny_free(handle->sub_topic);
+		handle->sub_topic = NULL;
+	}
+	topic = "device_control";
+	topic_callback = ctiot_cmd_dn_entry;
 	(void)MQTTSetMessageHandler(&handle->client, topic, topic_callback);
 	ATINY_LOG(LOG_INFO, "subcribe static topic: %s", topic);
 
-	rc = MQTT_SUCCESS; 
+	rc = MQTT_SUCCESS;
 	return rc;
 }

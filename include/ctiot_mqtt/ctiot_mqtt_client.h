@@ -126,11 +126,41 @@ typedef struct
 
 //*************************************************
 //
+//! @addtogroup 消息状态
+//!
+//! @{
+//
+//*************************************************
+typedef enum{
+    CTIOT_SUCCESS = 0,
+    CTIOT_PUBLISH_ERROR,
+    CTIOT_PARA_ERROR,
+	CTIOT_TYPE_ERROR,
+}CTIOT_MSG_STATUS;
+//*************************************************
+//
+//! @}
+//
+//*************************************************
+
+//*************************************************
+//
 //! @addtogroup 公共API接口
 //!
 //! @{
 //
 //*************************************************
+//**************************************************
+//
+//! @brief ctiot_mqtt登录
+//!
+//! @param mqtt_device_info_s 设备信息结构体
+//! @param mqtt_client_s mqtt_client句柄
+//!
+//! @retval  int 返回结果码
+//!
+//**************************************************
+CTIOT_MSG_STATUS ctiot_mqtt_msg_publish(char *topic, mqtt_qos_e qos, char* payload);
 //**************************************************
 //
 //! @brief ctiot_mqtt参数初始化
@@ -160,169 +190,20 @@ int ctiot_mqtt_login(const mqtt_device_info_s* device_info, mqtt_client_s* phand
 //
 //*************************************************
 
-//*************************************************
-//
-//! @addtogroup 消息状态
-//!
-//! @{
-//
-//*************************************************
-typedef enum{
-    CTIOT_SUCCESS = 0,
-    CTIOT_PUBLISH_ERROR,
-    CTIOT_PARA_ERROR,
-	CTIOT_TYPE_ERROR,
-}CTIOT_MSG_STATUS;
-//*************************************************
-//
-//! @}
-//
-//*************************************************
-
-//*************************************************
-//
-//! @addtogroup service为service_datareport的数据结构体
-//!
-//! @{
-//
-//*************************************************
 typedef struct {
-	mqtt_qos_e qos;     //!< QOS等级
-	float property_temperaturedata;    //!< 温度数据属性
-	float property_humiditydata;    //!< 湿度数据属性
-	int property_motordata;    //!< 电机状态属性
-} DATA_REPORT_SERVICE_DATAREPORT; 
-//*************************************************
-//
-//! @}
-//
-//*************************************************
-
-//*************************************************
-//
-//! @addtogroup service为service_eventreport的数据结构体
-//!
-//! @{
-//
-//*************************************************
-typedef struct {
-	mqtt_qos_e qos;     //!< QOS等级
-	float property_temperaturedata;    //!< 温度数据属性
-	float property_humiditydata;    //!< 湿度数据属性
-	int property_motordata;    //!< 电机状态属性
-} EVENT_REPORT_SERVICE_EVENTREPORT; 
-//*************************************************
-//
-//! @}
-//
-//*************************************************
-
-//*************************************************
-//
-//! @addtogroup service为service_cmddn的数据结构体
-//!
-//! @{
-//
-//*************************************************
-typedef struct {
-	int taskId;    //!< taskId
-	float property_temperaturedata;    //!< 温度数据属性
-	float property_humiditydata;    //!< 湿度数据属性
-	int property_motordata;    //!< 电机状态属性
-} CMD_DN_SERVICE_CMDDN; 
-//*************************************************
-//
-//! @}
-//
-//*************************************************
-
-//*************************************************
-//
-//! @addtogroup service为service_cmddnresponse的数据结构体
-//!
-//! @{
-//
-//*************************************************
-typedef struct {
-	mqtt_qos_e qos;     //!< QOS等级
-	int taskId;    //!< taskId
-	float property_temperaturedata;    //!< 温度数据属性
-	float property_humiditydata;    //!< 湿度数据属性
-	int property_motordata;    //!< 电机状态属性
-} CMD_RESPONSE_SERVICE_CMDDNRESPONSE; 
-//*************************************************
-//
-//! @}
-//
-//*************************************************
-
-
-//*************************************************
-//
-//! @addtogroup 非公共API接口
-//!
-//! @{
-//
-//*************************************************
-//**************************************************
-//
-//! @brief service为service_datareport
-//!
-//! @param DATA_REPORT_SERVICE_DATAREPORT 参见@ref DATA_REPORT_SERVICE_DATAREPORT
-//!
-//! @retval  CTIOT_MSG_STATUS 返回结果码
-//!
-//**************************************************
-CTIOT_MSG_STATUS ctiot_mqtt_data_report_service_datareport(DATA_REPORT_SERVICE_DATAREPORT* para);
-
-//**************************************************
-//
-//! @brief service为service_eventreport
-//!
-//! @param EVENT_REPORT_SERVICE_EVENTREPORT 参见@ref EVENT_REPORT_SERVICE_EVENTREPORT
-//!
-//! @retval  CTIOT_MSG_STATUS 返回结果码
-//!
-//**************************************************
-CTIOT_MSG_STATUS ctiot_mqtt_event_report_service_eventreport(EVENT_REPORT_SERVICE_EVENTREPORT* para);
-
-//**************************************************
-//
-//! @brief service为service_cmddnresponse
-//!
-//! @param CMD_RESPONSE_SERVICE_CMDDNRESPONSE 参见@ref CMD_RESPONSE_SERVICE_CMDDNRESPONSE
-//!
-//! @retval  CTIOT_MSG_STATUS 返回结果码
-//!
-//**************************************************
-CTIOT_MSG_STATUS ctiot_mqtt_cmd_response_service_cmddnresponse(CMD_RESPONSE_SERVICE_CMDDNRESPONSE* para);
-
-//*************************************************
-//
-//! @}
-//
-//*************************************************
-//*************************************************
-//
-//! @addtogroup 注册callbackfunction结构体
-//!
-//! @{
-//
-//*************************************************
-typedef struct{
-	void(*ctiot_mqtt_cmd_dn_service_cmddn)(CMD_DN_SERVICE_CMDDN*);
+	//透传设备回调
+	void(*ctiot_mqtt_cmd_dn_tr)(char*);
 }CTIOT_CB_FUNC;
-//*************************************************
-//
-//! @}
-//
-//*************************************************
-
-//int ctiot_mqtt_subscribe(void* mhandle);
-
-//typedef void (* CTIOT_CB)(MessageData *md);
 
 //void ctiot_mqtt_client_init(void);
+
+//typedef void(*CTIOT_CB)(MessageData *md);
+
+//---------------透传设备接口------------------
+//int ctiot_mqtt_subscribe(void* mhandle);
+
+//CTIOT_MSG_STATUS ctiot_mqtt_tr_data_up(char* payload, mqtt_qos_e qos);
+//--------------------------------------------
 
 #ifdef __cplusplus
 }
